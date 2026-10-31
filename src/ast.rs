@@ -1,5 +1,5 @@
 #[derive(Debug, PartialEq, Clone)]
-pub enum Token {
+pub enum TokenKind {
     Number(f64),
     Plus,
     Minus,
@@ -10,17 +10,23 @@ pub enum Token {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct Token {
+    pub kind: TokenKind,
+    pub pos: usize
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Number(f64),
     
     BinOp {
         left: Box<Expr>,
-        operand: Token,
+        operand: TokenKind,
         right: Box<Expr>,
     },
 
     UnaryOp {
-        operand: Token,
+        operand: TokenKind,
         expr: Box<Expr>,
     }
 }

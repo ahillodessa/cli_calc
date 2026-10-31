@@ -1,4 +1,4 @@
-use crate::ast::{Expr, Token};
+use crate::ast::{Expr, Token, TokenKind};
 use crate::error::CliCalcError;
 
 pub struct Parser {
@@ -14,7 +14,10 @@ impl Parser {
     pub fn parse(&mut self) -> Result<Expr, CliCalcError> {
         let ast = self.pase_expr()?;
         if self.position < self.tokens.len() {
-            return Err(CliCalcError::InvalidExpression);
+            let extra_token = &self.tokens[self.position];
+            return Err(CliCalcError::ParserError {
+                pos: extra_token.pos,
+                message: format!("unexpected token{:?}", extra_token.kind)});
         }
         Ok(ast)
     }
@@ -23,13 +26,13 @@ impl Parser {
         let mut left = self.parse_term()?;
 
         while let Some(token) = self.current_token() {
-            match token {
-                Token::Plus | Token::Minus => {
+            match token.kind {
+                TokenKind::Plus | TokenKind::Minus => {
                     self.position += 1;
                     let right = self.parse_term()?;
                     left = Expr::BinOp { 
                         left: Box::new(left),
-                        operand: token,
+                        operand: token.kind,
                         right: Box::new(right),
                     };
                 }
@@ -43,13 +46,13 @@ impl Parser {
         let mut left = self.pase_factor()?;
 
         while let Some(token) = self.current_token() {
-            match token {
-                Token::Multiply | Token::Divide => {
+            match token.kind {
+                TokenKind::Multiply | TokenKind::Divide => {
                     self.position += 1;
                     let right = self.pase_factor()?;
                     left = Expr::BinOp { 
                         left: Box::new(left),
-                        operand: token,
+                        operand: token.kind,
                         right: Box::new(right),
                     };
                 }
@@ -62,27 +65,32 @@ impl Parser {
     fn pase_factor(&mut self) -> Result<Expr, CliCalcError> {
         let token = self.current_token().ok_or(CliCalcError::InvalidExpression)?;
 
-        match token {
-            Token::Number(num) => {
+        match token.kind {
+            TokenKind::Number(num) => {
                 self.position += 1;
                 Ok(Expr::Number(num))
             }
-            Token::Minus => {
+            TokenKind::Minus => {
                 self.position += 1;
                 let expr = self.pase_factor()?;
-                Ok(Expr::UnaryOp { operand: Token::Minus, expr: Box::new(expr) })
+                Ok(Expr::UnaryOp { operand: TokenKind::Minus, expr: Box::new(expr) })
             }
-            Token::LParen => {
+            TokenKind::LParen => {
                 self.position += 1;
                 let expr = self.pase_expr()?;
-                if self.current_token() == Some(Token::RParen) {
+                if self.current_token().map(|t| t.kind) == Some(TokenKind::RParen) {
                     self.position += 1;
                     Ok(expr)
                 } else {
-                    Err(CliCalcError::InvalidExpression)
+                    Err(CliCalcError::ParserError {
+                        pos: token.pos,
+                        message: "unmatched opening parenthesis '('".to_string()})
                 }
             }
-            _ => Err(CliCalcError::InvalidExpression)
+            _ => Err(CliCalcError::ParserError {
+                pos: token.pos,
+                message: format!("unexpected token{:?}", token)
+            })
         }
     }
 
@@ -111,7 +119,7 @@ mod tests {
             ast,
             Expr::BinOp {
                 left: Box::new(Expr::Number(2.0)),
-                operand: Token::Plus,
+                operand: TokenKind::Plus,
                 right: Box::new(Expr::Number(3.0))
             }
         );

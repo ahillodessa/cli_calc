@@ -8,7 +8,7 @@ pub fn eval_ast(expr: &Expr) -> Result<f64, CliCalcError> {
         Expr::UnaryOp{operand, expr} => {
             let val = eval_ast(expr)?;
             match operand {
-                Token::Minus => Ok(-val),
+                TokenKind::Minus => Ok(-val),
                 _ => Err(CliCalcError::UnknownOperator(format!("{:?}", operand))),
             }
         },
@@ -18,10 +18,10 @@ pub fn eval_ast(expr: &Expr) -> Result<f64, CliCalcError> {
             let right_val = eval_ast(right)?;
 
             match operand {
-                Token::Plus => Ok(left_val + right_val),
-                Token::Minus => Ok(left_val - right_val),
-                Token::Multiply => Ok(left_val * right_val),
-                Token::Divide => {
+                TokenKind::Plus => Ok(left_val + right_val),
+                TokenKind::Minus => Ok(left_val - right_val),
+                TokenKind::Multiply => Ok(left_val * right_val),
+                TokenKind::Divide => {
                     if right_val == 0.00 {
                         return Err(CliCalcError::DivideByZero);
                     }
