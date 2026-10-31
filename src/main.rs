@@ -1,15 +1,18 @@
-use clap::Parser;
+use clap::Parser as CliParser;
 use std::{io::{self, Write}};
 
 pub mod ast;
 pub mod error;
 pub mod lexer;
+pub mod parser;
+pub mod eval;
 
-use ast::Token;
 use error::CliCalcError;
 use lexer::Lexer;
+use parser::Parser;
+use eval::eval_ast;
 
-#[derive(Parser, Debug)]
+#[derive(CliParser, Debug)]
 #[command(author, version, about = "CLI calc for learning")]
 struct CliArgs {
     #[arg(num_args(0..))]
@@ -19,10 +22,9 @@ struct CliArgs {
 fn main() {
     let args = CliArgs::parse();
 
-    // if let Some(expr) = args.expression {
     if !args.expression.is_empty() {
         let expr = args.expression.join(" ");
-        match eval_complex(&expr) {
+        match run_calculator(&expr) {
             Ok(res) => println!("{}", res),
             Err(err) => println!("{}", err)
         }
@@ -42,7 +44,7 @@ fn main() {
                 println!("Go to next operation");
                 continue;
             }
-            match eval_complex(input) {
+            match run_calculator(input) {
                 Ok(result) => println!("Result: {}", result),
                 Err(err) => println!("Error: {}", err),
             }
@@ -50,119 +52,33 @@ fn main() {
     }
 }
 
-fn precedence(operand: &Token) -> i32{
-    match operand {
-        Token::Plus | Token::Minus => 1,
-        Token::Multiply | Token::Divide => 2,
-        _ => 0,
-    }
-}
-
-fn apply_operand(numbers: &mut Vec<f64>, operand: &Token) -> Result<(), CliCalcError>{
-    let right_val: f64 = numbers.pop().ok_or(CliCalcError::InvalidValue)?;
-    let left_val: f64 = numbers.pop().ok_or(CliCalcError::InvalidValue)?;
-
-    let res: f64 = match operand {
-        Token::Plus => left_val + right_val,
-        Token::Minus => left_val - right_val,
-        Token::Multiply => left_val * right_val,
-        Token::Divide => {
-            if right_val == 0.0 {
-                return Err(CliCalcError::DivideByZero);
-            } 
-            left_val / right_val
-        }
-        _ => return Err(CliCalcError::UnknownOperator(format!("{:?}", operand))),
-    };
-
-    numbers.push(res);
-    Ok(())
-}
-
-fn eval_complex(expr: &str) -> Result<f64, CliCalcError> {
-    let mut numbers: Vec<f64> = Vec::new();
-    let mut operands: Vec<Token> = Vec::new();
-
-    let mut lexer = Lexer::new(expr);
+fn run_calculator(expr_str: &str) -> Result<f64, CliCalcError> {
+    let mut lexer = Lexer::new(expr_str);
     let tokens = lexer.tokenize()?;
 
-    for token in tokens {
-        match token {
-            Token::Number(num) => numbers.push(num),
-            Token::LParen => operands.push(token),
-            Token::RParen => {
-                let mut found_lparen = false;
-                while let Some(top_op) = operands.pop() {
-                    if top_op == Token::LParen {
-                        found_lparen = true;
-                        break;
-                    }
-                    apply_operand(&mut numbers, &top_op)?;
-                }
-                if !found_lparen {
-                    return Err(CliCalcError::InvalidExpression)
-                }
-            }
-            Token::Plus | Token::Minus | Token::Multiply | Token::Divide => {
-                while let Some(top_op) = operands.last() {
-                    if precedence(top_op) >= precedence(&token) {
-                        let top_op = operands.pop().unwrap();
-                        apply_operand(&mut numbers, &top_op)?;
-                    } else {
-                        break;
-                    }
-                }
-                operands.push(token);
-            }
-        }
-    }
-
-    while let Some(operand) = operands.pop() {
-        if operand == Token::LParen || operand == Token::RParen {
-            return Err(CliCalcError::InvalidExpression)
-        }
-        apply_operand(&mut numbers, &operand)?;
-    }
-
-    if numbers.len() == 1 {
-        Ok(numbers[0])
-    } else {
-        Err(CliCalcError::InvalidExpression)
-    }
-
+    let mut parser = Parser::new(tokens);
+    eval_ast(&parser.parse()?)
 }
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_lexer_calc_no_spaces() {
-        // Проверяем, что теперь всё отлично считается БЕЗ пробелов!
-        assert_eq!(eval_complex("2+3*4"), Ok(14.0));
+    fn test_ast_calc_precedence() {
+        assert_eq!(run_calculator("2 + 3 * 4"), Ok(14.0));
+        assert_eq!(run_calculator("(2 + 3) * 4"), Ok(20.0));
     }
 
     #[test]
-    fn test_lexer_calc_with_parentheses() {
-        // Проверяем поддержку скобок, которую мы заложили в лексер и стек
-        assert_eq!(eval_complex("(2+3)*4"), Ok(20.0));
+    fn test_ast_calc_unary_minus() {
+        assert_eq!(run_calculator("-5 + 3"), Ok(-2.0));
+        assert_eq!(run_calculator("--5"), Ok(5.0));
     }
 
     #[test]
-    fn test_divide_by_zero() {
-        assert_eq!(eval_complex("10/(5-5)"), Err(CliCalcError::DivideByZero));
-    }
-
-    #[test]
-    fn test_precedence() {
-        assert_eq!(precedence(&Token::Plus), 1);
-        assert_eq!(precedence(&Token::Minus), 1);
-
-        assert_eq!(precedence(&Token::Multiply), 2);
-        assert_eq!(precedence(&Token::Divide), 2);
-
-        assert_eq!(precedence(&Token::LParen), 0);
-        assert_eq!(precedence(&Token::RParen), 0);
-        // assert_eq!(precedence(&Token::Number(10), 0);
+    fn test_ast_divide_by_zero() {
+        assert_eq!(run_calculator("10 / (2 - 2)"), Err(CliCalcError::DivideByZero));
     }
 }

@@ -8,3 +8,19 @@ pub enum Token {
     LParen,  // (
     RParen,  // )
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Expr {
+    Number(f64),
+    
+    BinOp {
+        left: Box<Expr>,
+        operand: Token,
+        right: Box<Expr>,
+    },
+
+    UnaryOp {
+        operand: Token,
+        expr: Box<Expr>,
+    }
+}
