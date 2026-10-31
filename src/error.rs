@@ -2,6 +2,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum CliCalcError {
+    #[error("Parser error at position: {pos}:{message}")]
+    ParserError{pos: usize, message: String},
+
     #[error("Invalid expression format")]
     InvalidExpression,
 
