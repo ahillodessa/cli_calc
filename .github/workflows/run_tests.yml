@@ -1,0 +1,19 @@
+name: Run 'cli_calc' tests
+on: push
+
+jobs:
+  linux_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v7
+      - name: Run tests
+        run: cargo test
+
+  windows_test:
+    runs-on: windows-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v7
+      - name: Run tests
+        run: cargo test
