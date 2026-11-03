@@ -1,0 +1,11 @@
+name: Run `cli_calc` tests
+on: push
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v7
+      - name: Install Rust
+        run: rustup --version 
