@@ -1,8 +1,8 @@
-name: Run `cli_calc` tests
+name: Run 'cli_calc' tests
 on: push
 
 jobs:
-  test:
+  linux_test:
     runs-on: ubuntu-latest
     steps:
       - name: Get code
@@ -11,5 +11,13 @@ jobs:
         run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
       - name: Set environment variable
         run: source "$HOME/.cargo/env"
+      - name: Run tests
+        run: cargo test
+
+  windows_test:
+    runs-on: windows-latest
+    steps:
+      - name: Get code
+        uses: actions/checkout@v7
       - name: Run tests
         run: cargo test
