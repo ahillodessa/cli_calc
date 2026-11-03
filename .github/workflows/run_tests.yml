@@ -12,4 +12,4 @@ jobs:
       - name: Set environment variable
         run: source "$HOME/.cargo/env"
       - name: Run tests
-        run: ll
+        run: ls -l
