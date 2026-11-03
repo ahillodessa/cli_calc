@@ -8,4 +8,8 @@ jobs:
       - name: Get code
         uses: actions/checkout@v7
       - name: Install Rust
-        run: rustup --version 
+        run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      - name: Set environment variable
+        run: source "$HOME/.cargo/env"
+      - name: Run tests
+        run: ll
